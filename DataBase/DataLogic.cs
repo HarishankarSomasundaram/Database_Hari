@@ -14,6 +14,12 @@ namespace DataBase
     {
         string status;
 
+
+        public bool IsFileExists(string filename)
+        {
+            bool result = File.Exists(filename + ".xml");
+            return result;
+        }
         /// <summary>
         /// add data to xml file
         /// </summary>
@@ -21,26 +27,33 @@ namespace DataBase
         /// <param name="TableName"></param>
         /// <param name="DatatypeName"></param>
         /// <param name="DatatypeValue"></param>
-        public static void AddXML(string filename, List<string> TableName, List<string> DatatypeName, List<string> DatatypeValue)
+        public   void AddXML(string filename, List<string> TableName, List<string> DatatypeName, List<string> DatatypeValue)
         {
+            
             try
             {
                 XElement customer = XElement.Load(filename + ".xml");
                 //  XElement customer = new XElement(filename+"root");
                 XElement items = new XElement(filename);
                 customer.AddFirst(items);
-
+               
 
                 for (int i = 0; i < TableName.Count; i++)
                 {
+                   
                     //foreach (var o in TableName)
                     //{   customer.Element(filename).Add((new XElement(element[0])));
                     //var element = o.ToString().Split(' ');
                     // customer.Add( new XAttribute(DatatypeName[0], DatatypeValue[0]));
-                    customer.Element(filename).Add((new XElement(TableName[i], new XAttribute(DatatypeName[i], DatatypeValue[i]))));
+                   
+                        customer.Element(filename).Add((new XElement(TableName[i], new XAttribute(DatatypeName[i], DatatypeValue[i]))));
+                        
+                  
                     //}
                 }
                 customer.Save(filename + ".xml");
+                
+              
             }
             catch (Exception e)
             {
@@ -48,6 +61,16 @@ namespace DataBase
             }
         }
 
+ //       int n;
+ //       bool isNumeric = int.TryParse(DatatypeValue[i], out n);
+ //if (isNumeric && n>0)
+ //                   {
+ //         }
+ //                   else
+ //                   {
+ //                       status="please enter proper value for datatype";
+ //                       break;
+ //                   }
 
         /// <summary>
         /// 
@@ -119,12 +142,15 @@ namespace DataBase
             {
                 foreach (var v in DatatypeName)
                 {
-                    if (!(v.ToLower().Contains("int") || v.ToLower().Contains("varchar")))
+                    if (v != null)
                     {
-                        DataTypeMissMatch = true;
+                        if (!(v.ToLower().Contains("int") || v.ToLower().Contains("varchar")))
+                        {
+                            DataTypeMissMatch = true;
 
+                        }
                     }
-                    
+                   
                 }
                 if (!DataTypeMissMatch)
                 {
@@ -150,10 +176,31 @@ namespace DataBase
 
                             //  var o = str.Split(' ');
                             //  Creation(filename, o);
+                            bool IsAddable = false;
+                            foreach (var v in DatatypeValue)
+                            {
+                                int n;
+                                bool isNumeric = int.TryParse(v, out n);
+                                if (isNumeric && n > 0)
+                                {
 
-
-                            AddXML(filename, TableName, DatatypeName, DatatypeValue);
-                            status = "\tTable Created Successfully";
+                                    IsAddable = true;
+                                }
+                                else
+                                {
+                                    status = "please define columns properly";
+                                    IsAddable = false;
+                                }
+                            }
+                            if (IsAddable)
+                            {
+                                AddXML(filename, TableName, DatatypeName, DatatypeValue);
+                                status = "table created successfully";
+                            }
+                            else
+                            {
+                                File.Delete(filename + ".xml");
+                            }
                         }
                         catch (Exception e)
                         {
@@ -170,7 +217,7 @@ namespace DataBase
             }
             else
             {
-                status = "please define columns for \'" + filename + "\' table";
+                status = "please define columns for \'" + filename + "\' table properly";
             }
             return status;
         }
