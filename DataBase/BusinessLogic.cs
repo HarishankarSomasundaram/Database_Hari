@@ -7,6 +7,7 @@ using System.Xml;
 using System.IO;
 using System.Text.RegularExpressions;
 using System.Diagnostics;
+using System.Diagnostics.Contracts;
 
 namespace DataBase
 {
@@ -24,7 +25,7 @@ namespace DataBase
         {
             string status = null;
             List<string>[] QuerryList = MatchBL(qry);
-
+           // Contract.Requires(QuerryList[1].Count()==10);
             List<string> QuerryList1 = QuerryList[0];
             List<string> TableName = QuerryList[1];
             List<string> DatatypeName = QuerryList[2];
@@ -39,7 +40,7 @@ namespace DataBase
             bool Star = false;
             bool From = false;
             bool StarValues=false;
-
+            bool IsFileExists=false;
             if (QuerryList1.Count == 3)
             {
                 create =StringMatch( QuerryList1[0],"create");
@@ -47,8 +48,16 @@ namespace DataBase
              
                 if (create == true && table == true && TableName.Count == DatatypeName.Count && DatatypeName.Count == DatatypeValue.Count)
                 {
-                    status = DL.CreateXML(QuerryList1[2], TableName, DatatypeName, DatatypeValue);
-                   
+                    try
+                    {
+                        status = DL.CreateXML(QuerryList1[2], TableName, DatatypeName, DatatypeValue);
+
+                    }
+                    catch (Exception e)
+                    {
+                          throw e;
+                    }
+
                 }
                 else
                 {
@@ -82,28 +91,42 @@ namespace DataBase
 
                 //if(true)
                 //{
-                if (Insert == true && Into == true && Values == true)
+                //insert into <table_name> values{name varchar(12), age int}
+                if (Insert == true && Into == true && Values == true && QuerryList2.Count!=0)
                 {
-                    var AttributeTuple = MatchInsertBL(QuerryList1[2], QuerryList2);
-                    if (AttributeTuple != null)
+                    IsFileExists = DL.IsFileExists(QuerryList1[2]);
+                    if (IsFileExists)
                     {
-                        status = DL.InsertIntoXML(QuerryList1[2], AttributeTuple, QuerryList2);
-                        status = "Record inserted successfully";
+                        var AttributeTuple = MatchInsertBL(QuerryList1[2], QuerryList2);
+                        if (AttributeTuple != null)
+                        {
+                            status = DL.InsertIntoXML(QuerryList1[2], AttributeTuple, QuerryList2);
+                            status = "Record inserted successfully";
+                        }
+                        else
+                        {
+                            status = "please ensure that your column is defined properly";
+                        }
+                        // status = DL.CreateXML(QuerryList1[2], QuerryList2);
                     }
                     else
                     {
-                        status = "Please check your syntax";
+                        status = "table doesnt exists";
                     }
-                    // status = DL.CreateXML(QuerryList1[2], QuerryList2);
-
                 }
                else if (Select == true && Star == true && From == true)
                 {
-                    
-                    
+
+                    IsFileExists = DL.IsFileExists(QuerryList1[3]);
+                    if (IsFileExists)
+                    {
                         DL.SelectAllXML(QuerryList1[3]);
                         status = "Command executed successfully";
-                
+                    }
+                    else
+                    {
+                        status = "table doesnt exists";
+                    }
                 }
                 else if (Select == true && StarValues == true && From == true)
                 {
@@ -154,8 +177,7 @@ namespace DataBase
         /// <returns></returns>
         public Tuple<List<string>, List<string>, List<string>> MatchInsertBL(string filename, List<string> Columns)
         {//List<string> ColumnValues
-            if (File.Exists(filename + ".xml"))
-            {
+            
                 //XElement xele = XElement.Load(filename + ".xml");
                 ////xele.Add(new XElement(filename, "Hari"));
                 ////xele.Save(filename + ".xml");
@@ -228,17 +250,63 @@ namespace DataBase
                 }
                 else
                     return null;
+           
+        }
+       
+        public List<string> StringSplit(string InputString)
+        {
+         //  return   Regex.Replace(InputString, @"^\s*$\t", string.Empty, RegexOptions.Multiline);
+            List<string> output = new List<string>();
+            if (InputString.Contains('\t'))
+            {
+                var outputstring = InputString.Split('\t');
+                foreach (var v in outputstring)
+                {
+                    if (v.Trim() != string.Empty)
+                    {
+                        if (v.Trim().Contains('\t') || v.Trim().Contains(' '))
+                        {
+                            StringSplit(v.Trim());
+                        }
+                        else
+                        {
+                            output.Add(v.Trim());
+                        }
+                    }
+                }
+            }
+            else if (InputString.Contains(' '))
+            {
+                var outputstring = InputString.Split(' ');
+                foreach (var v in outputstring)
+                {
+                    if (v.Trim() != string.Empty)
+                    {
+                        if (v.Trim().Contains('\t') || v.Trim().Contains(' '))
+                        {
+                            StringSplit(v.Trim());
+                        }
+                        else
+                        {
+                            output.Add(v.Trim());
+                        }
+                    }
+                }
             }
             else
             {
-                return null;
+                output.Add(InputString);
             }
+
+            return output;
         }
 
 
-
-
-
+        /// <summary>
+        /// matches input querry to the corresponding data
+        /// </summary>
+        /// <param name="Input"></param>
+        /// <returns></returns>
 
         public List<string>[] MatchBL(string Input)
         {
@@ -253,7 +321,7 @@ namespace DataBase
             List<string> DatatypeValue = new List<string>();
 
 
-
+           
 
             var pattern = @"\{(.*?)\}";
             var matches = Regex.Matches(Input, pattern);
@@ -261,17 +329,16 @@ namespace DataBase
             {
                 InputQuerry = Input.Substring(0, Input.IndexOf("{"));
                 InputQuerry = InputQuerry.Trim();
+                List<string> liststring = StringSplit(InputQuerry);
+                //string[] InputSplit = null;
 
+               //InputSplit = liststring.Split(' ');
 
-
-
-                var InputSplit = InputQuerry.Split(' ');
-
-                foreach (var element in InputSplit)
+               foreach (var element in liststring)
                 {
-                    if (element != "")
+                    if (element.Trim() != "")
                     {
-                        QuerryList1.Add(element);
+                        QuerryList1.Add(element.Trim());
                     }
                 }
                 if (QuerryList1.Count == 4)
@@ -285,12 +352,26 @@ namespace DataBase
                             //Console.WriteLine(m.Groups[1]);
                             foreach (var element in bracket)
                             {
-                                if (element != "")
+                                if ((element.Trim() != ""))
                                 {
                                     QuerryList2.Add(element.Trim());
                                 }
                             }
                         }
+                        else
+                        {
+                            var subQuerry = m.Groups[1].Value.Split(' ');
+                            {
+                                foreach(var v in subQuerry)
+                                {
+                                    if(v.Trim() !=string.Empty)
+                                    {
+                                        QuerryList2.Add(v);
+                                    }
+                                }
+                            }
+                        }
+
                     }
 
 
@@ -306,9 +387,9 @@ namespace DataBase
                             //Console.WriteLine(m.Groups[1]);
                             foreach (var element in bracket)
                             {
-                                if (element != "")
+                                if (element.Trim() != "")
                                 {
-                                    QuerryList2.Add(element);
+                                    QuerryList2.Add(element.Trim());
                                 }
                             }
 
@@ -331,36 +412,36 @@ namespace DataBase
                                         var SubMatches = Regex.Matches(item, SubPattern);
                                         if (SubMatches.Count > 0)
                                         {
-                                            if (item.ToLower() != "int")
+                                            if (item.ToLower().Trim() != "int")
                                             {
                                                 DataName = item.Substring(0, item.IndexOf("(")).Trim();
 
                                                 foreach (Match Sm in SubMatches)
                                                 {
-                                                    value = Sm.Groups[1].Value;
+                                                    value = Sm.Groups[1].Value.Trim();
                                                 }
 
                                             }
                                         }
-                                        else if (item.ToLower() == "int")
+                                        else if (item.ToLower().Trim() == "int")
                                         {
-                                            DataName = item;
+                                            DataName = item.Trim();
                                             value = "255";
                                         }
 
                                         else
                                         {
-                                            TableName.Add(item);
+                                            TableName.Add(item.Trim());
                                         }
 
 
                                     }
 
                                 }
-                                if (DataName != null || value != null)
+                                if (DataName.Trim() != null || value.Trim() != null)
                                 {
-                                    DatatypeName.Add(DataName);
-                                    DatatypeValue.Add(value);
+                                    DatatypeName.Add(DataName.Trim());
+                                    DatatypeValue.Add(value.Trim());
                                 }
 
                             }
@@ -371,43 +452,89 @@ namespace DataBase
                             QuerryList2.Add(m.Groups[1].Value);
                             foreach (var b in QuerryList2)
                             {
-                                var QuerryList2SplitArray = b.Split(' ');
                                 string value = null;
 
                                 string DataName = null;
 
-                                foreach (var item in QuerryList2SplitArray)
+                                var SubPattern1 = @"\((.*?)\)";
+
+                                var SubMatches1 = Regex.Matches(b, SubPattern1);
+                                if (SubMatches1.Count > 0)
                                 {
 
-                                    if (item != "")
+                                    var QuerryList2SplitArray = b.Split(' ');
+                                 
+                                    foreach (var item in QuerryList2SplitArray)
                                     {
 
-                                        var SubPattern = @"\((.*?)\)";
-
-                                        var SubMatches = Regex.Matches(item, SubPattern);
-                                        if (SubMatches.Count > 0)
+                                        if (item != "")
                                         {
-                                            DataName = item.Substring(0, item.IndexOf("(")).Trim();
 
-                                            foreach (Match Sm in SubMatches)
+                                            var SubPattern = @"\((.*?)\)";
+
+                                            var SubMatches = Regex.Matches(item, SubPattern);
+                                            if (SubMatches.Count > 0)
                                             {
-                                                value = Sm.Groups[1].Value;
+                                                DataName = item.Substring(0, item.IndexOf("(")).Trim();
+
+                                                foreach (Match Sm in SubMatches)
+                                                {
+                                                    value = Sm.Groups[1].Value.Trim();
+                                                }
+
+                                            }
+                                            else
+                                            {
+                                                TableName.Add(item.Trim());
                                             }
 
-                                        }
-                                        else
-                                        {
-                                            TableName.Add(item);
-                                        }
 
+                                        }
 
                                     }
-
                                 }
-                                DatatypeName.Add(DataName);
-                                DatatypeValue.Add(value);
+                                else
+                                {
+                                    string[] QuerryList2SplitArray = null;
+                                    if (b.Trim().Contains('\t'))
+                                    {
+                                         QuerryList2SplitArray = b.Trim().Split('\t');
+                                    }
+                                    else
+                                    {
+                                         QuerryList2SplitArray = b.Trim().Split(' ');
+                                    }
+                                    List<string> TempQuerry = new List<string>();
+                                    foreach (var qry in QuerryList2SplitArray)
+                                    {
+                                        string TrimmedQuerry = qry.Trim();
+                                        if (TrimmedQuerry != string.Empty)
+                                        {
+                                            TempQuerry.Add(TrimmedQuerry);
+                                        }
+                                    }
+                                    if (TempQuerry.Count() == 2 && TempQuerry[1].ToLower() == "int")
+                                    {
+                                        TableName.Add(TempQuerry[0]);
+                                        DataName = TempQuerry[1];
+                                        value = "255";
+                                    }
+                                }
+                                if (DataName != null && value != null)
+                                {
 
+                                    if (DataName.ToLower().Trim() == "int" && value == "255")
+                                    {
 
+                                        DatatypeName.Add(DataName.Trim());
+                                        DatatypeValue.Add(value.Trim());
+                                    }
+                                    else if (DataName == "varchar")
+                                    {
+                                        DatatypeName.Add(DataName.Trim());
+                                        DatatypeValue.Add(value.Trim());
+                                    }
+                                }
                             }
                         }
 
@@ -418,11 +545,11 @@ namespace DataBase
             {
                 var InputSplit = Input.Split(' ');
 
-                foreach (var element in InputSplit)
+                foreach (var element  in InputSplit)
                 {
-                    if (element != "")
+                    if (element.Trim() != "")
                     {
-                        QuerryList1.Add(element);
+                        QuerryList1.Add(element.Trim());
                     }
                 }
             }
