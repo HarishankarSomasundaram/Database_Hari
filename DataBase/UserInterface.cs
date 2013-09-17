@@ -27,7 +27,6 @@ namespace DataBase
 
           UserInterface ui = new UserInterface();
             ui.UI();
-          
         }
         /// <summary>
         /// calls business logic
@@ -37,7 +36,7 @@ namespace DataBase
            BusinessLogic BL = new BusinessLogic();
            string Result;
 
-          
+
            Console.WriteLine("\tWelcome to Hari DataBase");
            do
            {
@@ -50,12 +49,18 @@ namespace DataBase
                }
                else
                {
+                   try
+                   {
 
+                       // Result = UserInterface.db(qry, BL.DataBaseBL);
+                       Result = BL.BusinessLogicMemberBL(qry);
+                       Console.WriteLine(Result);
 
-                   // Result = UserInterface.db(qry, BL.DataBaseBL);
-                   Result = BL.BusinessLogicMemberBL(qry);
-                   Console.WriteLine(Result);
-
+                   }
+                   catch (Exception e)
+                   {
+                       Console.WriteLine(e.Message);
+                   }
                    // UserInterface.match(); @"^([\'create'])$"
 
 
